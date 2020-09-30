@@ -1,16 +1,16 @@
-from agents.ddpg.ou_noise import OUNoise
-from agents.ddpg.replay_buffer import ReplayBuffer
 import numpy as np
 from task import Task
 import random
 from keras import layers, models, optimizers
 from keras import backend as K
+from agents.ddpg.ou_noise import OUNoise
+from agents.ddpg.replay_buffer import ReplayBuffer
+import os
 
 
 class MyAgent():
-
     def __init__(self, task):
-        ## Task (environment) information
+        # Task (environment) information
         self.task = task
         self.state_size = task.state_size
         self.action_size = task.action_size
@@ -45,20 +45,21 @@ class MyAgent():
         self.gamma = 0.99  # discount factor
         self.tau = 0.01  # for soft update of target parameters
         # self.last_state = None
-        self.best_w = None
         self.best_score = -np.inf
-        self.noise_scale = 0.1
-        self.score = 0
-        self.total_reward = None
-        self.count = 0
+        self.score = None
+
 
     def reset_episode(self):
         self.noise.reset()
         state = self.task.reset()
+
+        self.score = self.total_reward / float(self.count) if self.count else 0.0
+        if self.score > self.best_score:
+            self.best_score = self.score
         self.last_state = state
+        self.total_reward = 0.0
         self.count = 0
         return state
-
 
     def step(self, action, reward, next_state, done):
          # Save experience / reward
@@ -74,29 +75,27 @@ class MyAgent():
 
         if self.total_reward:
             self.total_reward += reward
-            self.count += 1
         else:
             self.total_reward = reward
 
 
-        # Learn by random policy search, using a reward-based score
-        self.score += reward
-        if self.score > self.best_score:
-            self.best_score = self.score
-            self.noise_scale = max(0.5 * self.noise_scale, 0.01)
-        else:
-            self.noise_scale = min(2.0 * self.noise_scale, 3.2)
 
-       
-    def act(self, states):
+    def act(self, state):
         """Returns actions for given state(s) as per current policy."""
-        state = np.reshape(states, [-1, self.state_size])
+        state = np.reshape(state, [-1, self.state_size])
         action = self.actor_local.model.predict(state)[0]
         return list(action + self.noise.sample())  # add some noise for exploration
 
-    def learn(self, experiences):
-        """Update policy and value parameters using given batch of experience tuples."""            
 
+    def learn(self, experiences):
+        """Update policy and value parameters using given batch of experience tuples."""
+
+        # Learn by random policy search, using a reward-based score
+        # self.score = self.total_reward / float(self.count) if self.count else 0.0
+        # self.score += reward
+        # if self.best_score > self.score:
+        #     self.best_score = self.score
+       
         # Convert experience tuples to separate arrays for each element (states, actions, rewards, etc.)
         states = np.vstack([e.state for e in experiences if e is not None])
         actions = np.array([e.action for e in experiences if e is not None]).astype(np.float32).reshape(-1, self.action_size)
@@ -119,7 +118,8 @@ class MyAgent():
 
         # Soft-update target models
         self.soft_update(self.critic_local.model, self.critic_target.model)
-        self.soft_update(self.actor_local.model, self.actor_target.model)
+        self.soft_update(self.actor_local.model, self.actor_target.model)   
+
 
     def soft_update(self, local_model, target_model):
         """Soft update model parameters."""
@@ -253,3 +253,4 @@ class Critic:
         self.get_action_gradients = K.function(
             inputs=[*self.model.input, K.learning_phase()],
             outputs=action_gradients)
+

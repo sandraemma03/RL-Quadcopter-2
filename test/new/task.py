@@ -1,7 +1,7 @@
 import numpy as np
 from physics_sim import PhysicsSim
 
-class Land():
+class Task():
     """Task (environment) that defines the goal and provides feedback to the agent."""
     def __init__(self, init_pose=None, init_velocities=None, 
         init_angle_velocities=None, runtime=5., target_pos=None):
@@ -23,40 +23,13 @@ class Land():
         self.action_high = 900
         self.action_size = 4
 
-        # Task-specific parameters
-        self.max_duration = 5.0  # secs
-        self.start_z = 10.0
-        self.target_z = 0.0  # target height (z position) to reach for successful landing
-
-
         # Goal
         self.target_pos = target_pos if target_pos is not None else np.array([0., 0., 10.]) 
 
     def get_reward(self):
         """Uses current pose of sim to return reward."""
-        # reward = 0
-        # reward = 1.-.3*(abs(self.sim.pose[:3] - self.target_pos)).sum()
-
-
-        #Compute reward / penalty and check if this episode is complete
-        done = False
-        reward = 0.0
-        
-        optimum_position = self.start_z + (self.target_z - self.start_z)*timestamp/self.max_duration
-        
-        if abs(optimum_position-pose.position.z)<1.0:
-            reward += 1
-        else:
-            reward -= 1
-        
-        # increase reward in target region
-        if pose.position.z <= 0.5:  # agent has crossed the target height
-            reward += 2.0  # bonus reward
-            done = True
-            
-        if timestamp > self.max_duration:  # agent has run out of time
-            done = True
-
+        reward = 0
+        reward = 1.-.3*(abs(self.sim.pose[:3] - self.target_pos)).sum()
         return reward
 
     def step(self, rotor_speeds):
